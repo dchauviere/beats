@@ -18,6 +18,7 @@ func init() {
 }
 
 type syslogOutput struct {
+	beatName string
   Protocol string
   LogLevel syslog.Priority
   ProgName string
@@ -27,7 +28,7 @@ type syslogOutput struct {
 }
 
 // New instantiates a new file output instance.
-func New(cfg *common.Config, _ int) (outputs.Outputer, error) {
+func New(beatName string, cfg *common.Config, _ int) (outputs.Outputer, error) {
 	config := defaultConfig
 	if err := cfg.Unpack(&config); err != nil {
 		return nil, err
@@ -37,7 +38,7 @@ func New(cfg *common.Config, _ int) (outputs.Outputer, error) {
 	cfg.SetInt("flush_interval", -1, -1)
 	cfg.SetInt("bulk_max_size", -1, -1)
 
-	output := &syslogOutput{}
+	output := &syslogOutput{beatName: beatName}
 	if err := output.init(config); err != nil {
 		return nil, err
 	}
@@ -87,14 +88,14 @@ func (out *syslogOutput) Close() error {
 func (out *syslogOutput) PublishEvent(
 	sig op.Signaler,
 	opts outputs.Options,
-	event common.MapStr,
+	data outputs.Data,
 ) error {
-	jsonEvent, err := json.Marshal(event)
+	jsonEvent, err := json.Marshal(data)
 	if err != nil {
 		// mark as success so event is not sent again.
 		op.SigCompleted(sig)
 
-		logp.Err("Fail to json encode event(%v): %#v", err, event)
+		logp.Err("Fail to json encode event(%v): %#v", err, data)
 		return err
 	}
 
